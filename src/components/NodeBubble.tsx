@@ -7,14 +7,15 @@ interface NodeBubbleProps {
   x: number;
   y: number;
   index: number;
+  size: number;
 }
 
-export const NodeBubble = ({ node, onSelect, x, y, index }: NodeBubbleProps) => (
+export const NodeBubble = ({ node, onSelect, x, y, index, size }: NodeBubbleProps) => (
   <motion.button
     type="button"
     onClick={() => onSelect(node.id)}
-    className="absolute w-40 -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-cyan-300/25 bg-surface-900/80 p-3 text-left shadow-lg shadow-cyan-900/20 backdrop-blur transition hover:border-cyan-300/60 hover:bg-surface-800/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
-    style={{ left: x, top: y }}
+    className="absolute -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-cyan-300/25 bg-surface-900/80 p-3 text-left shadow-lg shadow-cyan-900/20 backdrop-blur transition hover:border-cyan-300/60 hover:bg-surface-800/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
+    style={{ left: x, top: y, width: size }}
     initial={{ opacity: 0, scale: 0.8, y: 20 }}
     animate={{ opacity: 1, scale: 1, y: 0 }}
     exit={{ opacity: 0, scale: 0.8 }}

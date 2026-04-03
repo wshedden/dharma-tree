@@ -3,12 +3,16 @@ import type { ConceptNode } from '../types/concept';
 
 interface CenterNodeProps {
   node: ConceptNode;
+  x: number;
+  y: number;
+  size: number;
 }
 
-export const CenterNode = ({ node }: CenterNodeProps) => (
+export const CenterNode = ({ node, x, y, size }: CenterNodeProps) => (
   <motion.div
     key={node.id}
-    className="absolute left-1/2 top-1/2 z-10 w-64 -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-violet-300/35 bg-gradient-to-br from-violet-500/20 to-cyan-400/10 p-5 shadow-glow backdrop-blur"
+    className="absolute z-10 -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-violet-300/35 bg-gradient-to-br from-violet-500/20 to-cyan-400/10 p-5 shadow-glow backdrop-blur"
+    style={{ left: x, top: y, width: size }}
     initial={{ opacity: 0, scale: 0.92 }}
     animate={{ opacity: 1, scale: 1 }}
     exit={{ opacity: 0, scale: 0.92 }}

@@ -1,34 +1,68 @@
 import type { ConceptNode, PositionedNode } from '../types/concept';
 
-interface LayoutOptions {
-  width: number;
-  height: number;
-}
-
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-export const getChildNodeLayout = (
+interface RadialLayoutOptions {
   children: ConceptNode[],
-  { width, height }: LayoutOptions,
-): PositionedNode[] => {
+  containerWidth: number;
+  containerHeight: number;
+  childNodeDiameter?: number;
+  centerNodeDiameter?: number;
+  minSpacing?: number;
+  edgePadding?: number;
+}
+
+const getBaseAngles = (childCount: number): number[] => {
+  if (childCount === 1) {
+    return [-Math.PI / 2];
+  }
+
+  if (childCount === 2) {
+    return [-Math.PI / 2, Math.PI / 2];
+  }
+
+  if (childCount === 3) {
+    return [-Math.PI / 2, -Math.PI / 2 + (2 * Math.PI) / 3, -Math.PI / 2 + (4 * Math.PI) / 3];
+  }
+
+  return Array.from({ length: childCount }, (_, index) => (-Math.PI / 2 + (2 * Math.PI * index) / childCount) % (2 * Math.PI));
+};
+
+export const getRadialLayout = ({
+  children,
+  containerWidth,
+  containerHeight,
+  childNodeDiameter = 160,
+  centerNodeDiameter = 256,
+  minSpacing = 28,
+  edgePadding = 52,
+}: RadialLayoutOptions): PositionedNode[] => {
   if (children.length === 0) {
     return [];
   }
 
-  const centerX = width / 2;
-  const centerY = height / 2;
+  const centerX = containerWidth / 2;
+  const centerY = containerHeight / 2;
+  const childCount = children.length;
 
-  const minDimension = Math.min(width, height);
-  const baseRadius = clamp(minDimension * 0.3, 140, 280);
-  const spread = children.length > 7 ? Math.PI * 1.65 : Math.PI * 1.45;
-  const startAngle = -Math.PI / 2 - spread / 2;
-  const step = children.length === 1 ? 0 : spread / (children.length - 1);
+  const maxRadiusX = centerX - edgePadding - childNodeDiameter / 2;
+  const maxRadiusY = centerY - edgePadding - childNodeDiameter / 2;
+  const maxAllowedRadius = Math.max(0, Math.min(maxRadiusX, maxRadiusY));
+
+  const centerSafetyRadius = centerNodeDiameter / 2 + childNodeDiameter / 2 + minSpacing;
+  const minRadiusForNeighbors =
+    childCount > 1
+      ? (childNodeDiameter + minSpacing) / (2 * Math.sin(Math.PI / childCount))
+      : centerSafetyRadius;
+
+  const targetRadiusByCount = centerSafetyRadius + childCount * 6;
+  const calculatedRadius = Math.max(centerSafetyRadius, minRadiusForNeighbors, targetRadiusByCount);
+  const radius = clamp(calculatedRadius, centerSafetyRadius, maxAllowedRadius);
+
+  const angles = getBaseAngles(childCount);
 
   return children.map((node, index) => {
-    const angle = children.length === 1 ? -Math.PI / 2 : startAngle + index * step;
-    const ringOffset = children.length > 8 ? ((index % 2) * 42 - 18) : 0;
-    const radius = baseRadius + ringOffset;
-
+    const angle = angles[index] ?? -Math.PI / 2;
     return {
       node,
       x: centerX + Math.cos(angle) * radius,
