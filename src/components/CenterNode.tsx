@@ -8,7 +8,7 @@ interface CenterNodeProps {
 export const CenterNode = ({ node }: CenterNodeProps) => (
   <motion.div
     key={node.id}
-    className="absolute left-1/2 top-1/2 z-10 w-64 -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-violet-300/35 bg-gradient-to-br from-violet-500/20 to-cyan-400/10 p-5 shadow-glow backdrop-blur"
+    className="absolute left-1/2 top-1/2 z-10 h-48 w-64 -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-violet-300/35 bg-gradient-to-br from-violet-500/20 to-cyan-400/10 p-5 shadow-glow backdrop-blur"
     initial={{ opacity: 0, scale: 0.92 }}
     animate={{ opacity: 1, scale: 1 }}
     exit={{ opacity: 0, scale: 0.92 }}

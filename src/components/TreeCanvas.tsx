@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ConceptNode } from '../types/concept';
-import { getChildNodeLayout } from '../lib/layout';
+import { getRadialLayout } from '../lib/layout';
 import { CenterNode } from './CenterNode';
 import { EmptyState } from './EmptyState';
 import { NodeBubble } from './NodeBubble';
@@ -11,13 +11,49 @@ interface TreeCanvasProps {
   onSelect: (id: string) => void;
 }
 
-const CANVAS_WIDTH = 900;
-const CANVAS_HEIGHT = 560;
+const CENTER_NODE_SIZE = { width: 256, height: 192 };
+const CHILD_NODE_SIZE = { width: 160, height: 120 };
+
+const FALLBACK_SIZE = { width: 900, height: 560 };
 
 export const TreeCanvas = ({ node, onSelect }: TreeCanvasProps) => {
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const [canvasSize, setCanvasSize] = useState(FALLBACK_SIZE);
+
+  useEffect(() => {
+    if (!canvasRef.current) {
+      return;
+    }
+
+    const updateSize = () => {
+      if (!canvasRef.current) {
+        return;
+      }
+
+      const { width, height } = canvasRef.current.getBoundingClientRect();
+      if (width > 0 && height > 0) {
+        setCanvasSize({ width, height });
+      }
+    };
+
+    updateSize();
+
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(canvasRef.current);
+
+    return () => observer.disconnect();
+  }, []);
+
   const positions = useMemo(
-    () => getChildNodeLayout(node.children, { width: CANVAS_WIDTH, height: CANVAS_HEIGHT }),
-    [node.children],
+    () =>
+      getRadialLayout({
+        children: node.children,
+        containerWidth: canvasSize.width,
+        containerHeight: canvasSize.height,
+        childNodeSize: CHILD_NODE_SIZE,
+        centerNodeSize: CENTER_NODE_SIZE,
+      }),
+    [canvasSize.height, canvasSize.width, node.children],
   );
 
   return (
@@ -26,6 +62,7 @@ export const TreeCanvas = ({ node, onSelect }: TreeCanvasProps) => {
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.06)_1px,transparent_1px)] bg-[size:30px_30px] opacity-25" />
 
       <motion.div
+        ref={canvasRef}
         key={node.id}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
