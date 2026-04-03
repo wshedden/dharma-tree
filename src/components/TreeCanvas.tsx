@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { useMemo } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ConceptNode } from '../types/concept';
-import { getChildNodeLayout } from '../lib/layout';
+import { getRadialLayout } from '../lib/layout';
 import { CenterNode } from './CenterNode';
 import { EmptyState } from './EmptyState';
 import { NodeBubble } from './NodeBubble';
@@ -11,14 +11,62 @@ interface TreeCanvasProps {
   onSelect: (id: string) => void;
 }
 
-const CANVAS_WIDTH = 900;
-const CANVAS_HEIGHT = 560;
+const DEFAULT_CANVAS_SIZE = {
+  width: 900,
+  height: 560,
+};
+
+const CENTER_NODE_SIZE = {
+  width: 256,
+  height: 180,
+};
+
+const CHILD_NODE_SIZE = {
+  width: 160,
+  height: 116,
+};
 
 export const TreeCanvas = ({ node, onSelect }: TreeCanvasProps) => {
-  const positions = useMemo(
-    () => getChildNodeLayout(node.children, { width: CANVAS_WIDTH, height: CANVAS_HEIGHT }),
-    [node.children],
-  );
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const [canvasSize, setCanvasSize] = useState(DEFAULT_CANVAS_SIZE);
+
+  useLayoutEffect(() => {
+    const element = canvasRef.current;
+    if (!element) {
+      return;
+    }
+
+    const updateSize = () => {
+      const { width, height } = element.getBoundingClientRect();
+      setCanvasSize({
+        width: Math.round(width),
+        height: Math.round(height),
+      });
+    };
+
+    updateSize();
+
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, []);
+
+  const positions = useMemo(() => {
+    const points = getRadialLayout({
+      childCount: node.children.length,
+      containerWidth: canvasSize.width,
+      containerHeight: canvasSize.height,
+      nodeSize: CHILD_NODE_SIZE,
+      centerNodeSize: CENTER_NODE_SIZE,
+    });
+
+    return points.map((point, index) => ({
+      node: node.children[index],
+      x: point.x,
+      y: point.y,
+    }));
+  }, [canvasSize.height, canvasSize.width, node.children]);
 
   return (
     <section className="relative min-h-[32rem] overflow-hidden rounded-2xl border border-slate-800 bg-surface-950/90 shadow-2xl">
@@ -27,13 +75,14 @@ export const TreeCanvas = ({ node, onSelect }: TreeCanvasProps) => {
 
       <motion.div
         key={node.id}
+        ref={canvasRef}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.2 }}
         className="relative mx-auto h-[560px] w-full max-w-[900px]"
       >
-        <CenterNode node={node} />
+        <CenterNode node={node} x={canvasSize.width / 2} y={canvasSize.height / 2} />
 
         <AnimatePresence>
           {positions.map((item, index) => (
