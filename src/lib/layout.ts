@@ -1,38 +1,107 @@
-import type { ConceptNode, PositionedNode } from '../types/concept';
-
-interface LayoutOptions {
-  width: number;
-  height: number;
+export interface Point {
+  x: number;
+  y: number;
 }
+
+interface RadialLayoutOptions {
+  childCount: number;
+  containerWidth: number;
+  containerHeight: number;
+  nodeSize: number;
+  centerNodeSize: number;
+  edgePadding?: number;
+  spacing?: number;
+}
+
+const TAU = Math.PI * 2;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-export const getChildNodeLayout = (
-  children: ConceptNode[],
-  { width, height }: LayoutOptions,
-): PositionedNode[] => {
-  if (children.length === 0) {
+const getAngles = (count: number): number[] => {
+  if (count <= 0) {
     return [];
   }
 
-  const centerX = width / 2;
-  const centerY = height / 2;
+  if (count === 1) {
+    return [-Math.PI / 2];
+  }
 
-  const minDimension = Math.min(width, height);
-  const baseRadius = clamp(minDimension * 0.3, 140, 280);
-  const spread = children.length > 7 ? Math.PI * 1.65 : Math.PI * 1.45;
-  const startAngle = -Math.PI / 2 - spread / 2;
-  const step = children.length === 1 ? 0 : spread / (children.length - 1);
+  if (count === 2) {
+    return [0, Math.PI];
+  }
 
-  return children.map((node, index) => {
-    const angle = children.length === 1 ? -Math.PI / 2 : startAngle + index * step;
-    const ringOffset = children.length > 8 ? ((index % 2) * 42 - 18) : 0;
-    const radius = baseRadius + ringOffset;
+  if (count === 3) {
+    return [-Math.PI / 2, -Math.PI / 2 + TAU / 3, -Math.PI / 2 + (2 * TAU) / 3];
+  }
 
-    return {
-      node,
-      x: centerX + Math.cos(angle) * radius,
-      y: centerY + Math.sin(angle) * radius,
-    };
+  return Array.from({ length: count }, (_, index) => (TAU * index) / count - Math.PI / 2);
+};
+
+const buildRings = (
+  childCount: number,
+  minRadius: number,
+  maxRadius: number,
+  nodeSize: number,
+  spacing: number,
+): Array<{ radius: number; count: number }> => {
+  if (childCount <= 0 || maxRadius <= 0) {
+    return [];
+  }
+
+  const rings: Array<{ radius: number; count: number }> = [];
+  let remaining = childCount;
+
+  if (childCount <= 3) {
+    return [{ radius: clamp(minRadius, 0, maxRadius), count: childCount }];
+  }
+
+  const ringStep = nodeSize + spacing;
+  let radius = minRadius;
+
+  while (remaining > 0 && radius <= maxRadius + 0.001) {
+    const maxOnRing = Math.max(4, Math.floor((TAU * radius) / (nodeSize + spacing)));
+    const count = Math.min(remaining, maxOnRing);
+    rings.push({ radius, count });
+    remaining -= count;
+    radius += ringStep;
+  }
+
+  if (remaining > 0) {
+    const fallbackRadius = maxRadius;
+    rings.push({ radius: fallbackRadius, count: remaining });
+  }
+
+  return rings;
+};
+
+export const getRadialLayout = ({
+  childCount,
+  containerWidth,
+  containerHeight,
+  nodeSize,
+  centerNodeSize,
+  edgePadding = 56,
+  spacing = 30,
+}: RadialLayoutOptions): Point[] => {
+  if (childCount === 0 || containerWidth <= 0 || containerHeight <= 0) {
+    return [];
+  }
+
+  const centerNodeRadius = centerNodeSize / 2;
+  const childNodeRadius = nodeSize / 2;
+  const minimumSafeRadius = centerNodeRadius + childNodeRadius + spacing;
+
+  const maxRadiusX = containerWidth / 2 - edgePadding - childNodeRadius;
+  const maxRadiusY = containerHeight / 2 - edgePadding - childNodeRadius;
+  const maxAllowedRadius = Math.max(0, Math.min(maxRadiusX, maxRadiusY));
+
+  const rings = buildRings(childCount, minimumSafeRadius, maxAllowedRadius, nodeSize, spacing);
+
+  return rings.flatMap(({ radius, count }) => {
+    const angles = getAngles(count);
+    return angles.map((angle) => ({
+      x: Math.cos(angle) * radius,
+      y: Math.sin(angle) * radius,
+    }));
   });
 };
